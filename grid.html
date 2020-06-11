@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <!-- Meta -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.5.0/css/bootstrap-datepicker3.min.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/main.css" >
+
+    <!-- Title -->
+    <title>ToDoList</title>
+  </head>
+  <body>
+    <div class="container">
+      <div class="row">
+        <div class="colSet col-xs-12">
+          <!-- header -->
+          <div id="header">
+            <span id="eid"></span>
+            <button type="button" class="btn btn-link btn-sm" onclick="chngeViewType();">아코디언모드</button>
+            <button type="button" class="btn btn-link btn-sm" onclick="logoutProc();">로그아웃</button>
+          </div>
+          <!-- datePicker -->
+          <div class="input-group date" id="datepicker">
+            <input type="text" class="form-control" id="selectDate" maxlength="8"><span class="input-group-addon"><i class="glyphicon glyphicon-calendar"></i></span>
+          </div>
+          <!-- mainSection -->
+          <div class="mainSection">
+            <!-- gridList -->
+            <div id="gridList"></div>
+          </div>
+        </div>
+        <!-- addMemo -->
+        <div id="floatingBtn">
+          <a href='add.html' class='btn-floating'><div><i class="glyphicon glyphicon-pencil"></i></div></a>
+        </div>
+      </div>
+    </div>
+
+    <!-- jQuery -->
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <!-- Bootstrap -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.5.0/js/bootstrap-datepicker.min.js"></script>
+    <!-- FireBase -->
+    <script src="https://www.gstatic.com/firebasejs/6.2.0/firebase.js"></script>
+    <script type="text/javascript" src="js/firebase_con.js"></script>
+    <!-- Common Functions -->
+    <script type="text/javascript" src="js/comFunc.js"></script>
+    <!-- setListData() -->
+    <script type="text/javascript" src="js/setListData.js"></script>
+
+    <script>
+      function chngeViewType() {
+        localStorage.viewType = 'index';
+        location.href = "index.html?date=" + document.getElementById('selectDate').value;
+      }
+
+      $(function(){
+        // 로딩 시작
+        showLoading();
+
+        firebase.auth().onAuthStateChanged(function(user) {
+          // 데이터 받으면 로딩 종료
+          removeLoading();
+
+          if (user) {
+            // User is signed in.
+            var query = firebase.database().ref("users").child(user.uid);
+            query.once('value')
+              .then(function(dataSnapshot) {
+                document.getElementById('eid').innerHTML = dataSnapshot.child("name").val() + "님의 <span id='subTitle'>ToDoList</span>";
+              });
+
+            // 로딩 시작
+            showLoading();
+
+            // 파라미터로 받은 날짜가 있는지 확인 후 진행
+            var date = document.getElementById('selectDate');
+            var param = getParam('date');
+            if (param == null || param == "") {
+              // 없으면 오늘날짜 획득 및 셋팅
+              date.value = getToday();
+            } else {
+              // 받은 파라미터 셋팅
+              date.value = param;
+            }
+
+            var query = firebase.database().ref("list").child(user.uid).child(date.value).orderByKey();
+            query.once('value')
+              .then(function(snapshot){
+                // 데이터 받으면 로딩 종료
+                removeLoading();
+
+                // 기존 데이터 초기화
+                $('#mainSection').empty();
+                removeNoData();
+
+                // 데이터가 없으면 noData 보이기
+                if (snapshot.exists()) {
+                  removeNoData();
+                } else {
+                  showNoData();
+                }
+
+                // 데이터 갯수만큼 루프
+                snapshot.forEach(function(childSnapshot){
+                  var gridItems = "";
+
+                  gridItems += "<div class='gridCell col-lg-3 col-md-4 col-sm-6 col-xs-12'>";
+                  gridItems += "  <div class='items' ";
+                  if (childSnapshot.child('state').val() == "checked") {
+                    gridItems += "style='background:#FAECC5;'";
+                  }
+                  gridItems += "  >";
+                  gridItems += "    <input type='text' class='key' value='" + childSnapshot.key + "'/>";
+                  gridItems += "    <input type='checkbox' name='chkbox' id='" + childSnapshot.key + "_chkbox' " + childSnapshot.child('state').val() + "/>";
+                  gridItems += "    <label for='" + childSnapshot.key + "_chkbox'";
+                  if (childSnapshot.child('state').val() == "checked") {
+                    gridItems += "style='text-decoration:line-through;'";
+                  }
+                  gridItems += "    >" + childSnapshot.child('title').val() + "</label>";
+                  gridItems += "    <p id='contTxt'>" + childSnapshot.child('content').val() + "</p>";
+                  gridItems += "    <div class='panel-body-footer'>";
+                  gridItems += "      <button type='button' class='btn btn-primary btn-xs' id='modify' name='modify'>수정</button>";
+                  gridItems += "      <button type='button' class='btn btn-danger btn-xs' id='delete' name='delete'>삭제</button>";
+                  gridItems += "      <span class='time'>" + childSnapshot.child('time').val() + "</span>";
+                  gridItems += "    </div>";
+                  gridItems += "  </div>";
+                  gridItems += "</div>";
+
+                  $('#gridList').append(gridItems);
+                });
+            });
+
+            // 체크박스 이벤트 리스너 구현
+            $(document).on('change', 'input[name=chkbox]', function(){
+              var checkState = $(this).is(":checked");
+              var panelRoot = $(this).parent();
+              var state = "";
+
+              if (checkState) {
+                panelRoot.find("label").css("text-decoration", "line-through");
+                panelRoot.css("background", "#FAECC5");
+                state = "checked";
+              } else {
+                panelRoot.find("label").css("text-decoration", "none");
+                panelRoot.css("background", "#ffc");
+                state = "unchecked";
+              }
+
+              // 체크 변경 시 서버의 값도 같이 바꿔줌
+              firebase.auth().onAuthStateChanged(function(user) {
+                if (user) {
+                  // User is signed in.
+                  var key = panelRoot.find(".key").val();
+                  var query = firebase.database().ref("list").child(user.uid).child(date.value).child(key);
+                  query.update({
+                    "state": state
+                  });
+                } else {
+                  // User is signed out -> 로그인화면으로
+                  location.href = "login.html";
+                  return;
+                }
+              });
+            });
+
+            // 삭제 버튼 이벤트 리스너 구현
+            $(document).on('click', 'button[name=delete]', function(){
+              var panelRoot = $(this).parent().parent();
+              var key = panelRoot.find(".key").val();
+
+              var rtnConfirm = confirm('해당 메모를 삭제하시겠습니까?');
+
+              if (rtnConfirm) {
+                firebase.auth().onAuthStateChanged(function(user) {
+                  if (user) {
+                    // User is signed in.
+                    var query = firebase.database().ref("list").child(user.uid).child(date.value).child(key);
+                    query.remove()
+                      .then(function() {
+                        // 정상적으로 삭제되면 화면 새로고침
+                        window.location.reload();
+
+                      }).catch(function(error) {
+                        console.log("Remove failed: " + error.message);
+                      });
+                  } else {
+                    // User is signed out -> 로그인화면으로
+                    location.href = "login.html";
+                    return;
+                  }
+                });
+              }
+            });
+
+            // 수정 버튼 이벤트 리스너 구현
+            $(document).on('click', 'button[name=modify]', function(){
+              var panelRoot = $(this).parent().parent();
+              var key = panelRoot.find(".key").val();
+
+              // 수정화면으로 이동 및 데이터 전달
+              location.href= "mod.html?date=" + date.value + "&key=" + key;
+            });
+
+            // 데이트피커 기능 구현 및 이벤트리스너 셋팅
+            $('#datepicker').datepicker({
+              todayHighlight: true,
+              autoclose: true,
+              format: "yyyy-mm-dd"
+            })
+            .on("changeDate", function(e){
+              // 날짜 변경 시 변경된 날짜를 파라미터로 현재화면 재호출
+              location.href = "grid.html?date=" + document.getElementById('selectDate').value;
+            });
+          } else {
+            // User is signed out -> 로그인화면으로
+            location.href = "login.html";
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

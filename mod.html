@@ -1,0 +1,164 @@
+<html lang="ko">
+  <head>
+    <!-- Meta -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.5.0/css/bootstrap-datepicker3.min.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/main.css" >
+
+    <!-- Title -->
+    <title>AddMemo</title>
+  </head>
+  <body>
+    <div class="container">
+      <div class="row">
+        <div class="colSet col-sm-8 col-sm-offset-2">
+          <h1 id="projectTitle">메모수정</h1>
+          <!-- DatePicker -->
+          <div class="input-group date" id="datepicker">
+            <input type="text" class="form-control" id="selectDate" maxlength="8"><span class="input-group-addon"><i class="glyphicon glyphicon-calendar"></i></span>
+          </div>
+          <!-- mainSection -->
+          <div class="mainSection">
+            <!-- Title -->
+            <div class="form-group form-group-lg">
+              <input class="form-control" type="text" placeholder="제목" id="title" maxlength="15">
+            </div>
+            <!-- Content -->
+            <div class="form-group form-group-lg" id="memoContent">
+              <textarea class="form-control" placeholder="내용" maxlength="200" id="content" oninput="contStrLenCheck(this);"></textarea>
+              <span id="contentLength">0/200</span>
+            </div>
+            <!-- Save -->
+            <button type="button" class="btn btn-primary btn-lg btn-block" onclick="ModifyMemo();">저장</button>
+            <!-- State -->
+            <input type='text' class='hidden' id='state'/>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- jQuery -->
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <!-- Bootstrap -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.5.0/js/bootstrap-datepicker.min.js"></script>
+    <!-- FireBase -->
+    <script src="https://www.gstatic.com/firebasejs/6.2.0/firebase.js"></script>
+    <script type="text/javascript" src="js/firebase_con.js"></script>
+    <!-- Common Functions -->
+    <script type="text/javascript" src="js/comFunc.js"></script>
+
+    <script>
+      $(function(){
+        // 날짜 획득 및 셋팅
+        var date = document.getElementById('selectDate');
+        date.value = getParam('date');
+
+        // 데이트피커 기능 구현 및 이벤트리스너 셋팅
+        $('#datepicker').datepicker({
+          todayHighlight: true,
+          autoclose: true,
+          format: "yyyy-mm-dd"
+        });
+
+        // 로딩이미지 보이기
+        showLoading();
+
+        firebase.auth().onAuthStateChanged(function(user) {
+          if (user) {
+            // User is signed in.
+            var query = firebase.database().ref("list").child(user.uid).child(date.value).child(getParam('key'));
+            query.once('value')
+              .then(function(dataSnapshot) {
+                // 데이터 획득 후 로딩이미지 지우기
+                removeLoading();
+
+                // 제목과 내용, 체크상태 셋팅
+                document.getElementById('title').value = dataSnapshot.child('title').val();
+                document.getElementById('content').value = dataSnapshot.child('content').val();
+                document.getElementById('state').value = dataSnapshot.child('state').val();
+
+                contStrLenCheck(document.getElementById('content'));
+              });
+          } else {
+            // User is signed out -> 로그인화면으로
+            location.href = "login.html";
+            return;
+          }
+        });
+      });
+
+      function contStrLenCheck(e) {
+        var CurLength = e.value.length + "/200";
+        document.getElementById('contentLength').innerHTML = CurLength;
+      }
+
+      function ModifyMemo() {
+        var title = document.getElementById('title');
+        var content = document.getElementById('content');
+        var state = document.getElementById('state');
+
+        // title 입력 체크
+        if (title.value == "") {
+          window.alert("제목을 입력해주세요!");
+          title.focus();
+          return
+        }
+
+        // content 입력 체크
+        if (content.value == "") {
+          window.alert("내용을 입력해주세요!");
+          content.focus();
+          return
+        }
+
+        // 입력체크 완료하면 마스크처리
+        showMask();
+
+        firebase.auth().onAuthStateChanged(function(user) {
+          if (user) {
+            // User is signed in.
+            // 기존 데이터 삭제 후 날짜에 맞게 다시 생성
+            var query = firebase.database().ref("list").child(user.uid).child(getParam('date')).child(getParam('key'));
+            query.remove()
+              .then(function() {
+                // 날짜 아래에 랜덤키 push 후 데이터 셋팅
+                var date = document.getElementById('selectDate');
+                var query = firebase.database().ref("list").child(user.uid).child(date.value).push();
+                query.set({
+                  // JSON 형태로 데이터 전달
+                  "title": title.value,
+                  "content": content.value,
+                  "time": new Date().toLocaleString(),
+                  "state": state.value
+                })
+                .then(function(){
+                  // 저장에 성공하면 메인화면으로 이동
+                  var veiwType = localStorage.viewType;
+                  if (veiwType == null) {
+                    location.href = "index.html?date=" + date.value;
+                  } else {
+                    location.href = veiwType + ".html?date=" + date.value; // viewType = "index" or "grid"
+                  }
+                });
+              })
+              .catch(function(error) {
+                console.log("Remove failed: " + error.message);
+              });
+          } else {
+            // User is signed out -> 로그인화면으로
+            location.href = "login.html";
+            return;
+          }
+        });
+      }
+    </script>
+  </body>
+</html>

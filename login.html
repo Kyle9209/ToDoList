@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <!-- Meta -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/main.css" >
+
+    <!-- Title -->
+    <title>Login</title>
+  </head>
+  <body>
+    <div class="container">
+      <div class="row">
+        <div class="colSetLogin col-lg-3 col-md-4 col-sm-6 col-xs-10">
+          <h1 id="projectTitle">ToDoList</h1>
+          <div class="form-group">
+            <input class="form-control input-lg" type="text" placeholder="아이디" id="eid" onKeypress="alert(this);">
+          </div>
+          <div class="form-group">
+            <input class="form-control input-lg" type="password" placeholder="비밀번호" id="pwd" onKeypress="javascript:if(event.keyCode==13) {loginProc();}">
+          </div>
+          <button type="button" class="btn btn-primary btn-lg btn-block" onclick="loginProc();">로그인</button>
+          <div id="joinDiv">
+            <a href="join.html">회원가입</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- jQuery -->
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <!-- Bootstrap -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
+    <!-- FireBase -->
+    <script src="https://www.gstatic.com/firebasejs/6.2.0/firebase.js"></script>
+    <script type="text/javascript" src="js/firebase_con.js"></script>
+    <!-- Common Functions -->
+    <script type="text/javascript" src="js/comFunc.js"></script>
+
+    <script>
+      function moveToPwdInput(event){
+        alert("sad");
+      }
+
+      function loginProc() {
+        var eid = document.getElementById('eid');
+        var pwd = document.getElementById('pwd');
+
+        // eid 입력 체크
+        if (eid.value == "") {
+          window.alert("아이디를 입력해주세요!");
+          eid.focus();
+          return
+        }
+
+        // pwd 입력 체크
+        if (pwd.value == "") {
+          window.alert("비밀번호를 입력해주세요!");
+          pwd.focus();
+          return
+        }
+
+        // 마스크 시작
+        showMask();
+
+        // 아이디,비밀번호 파이어베이스 검증
+        var email = eid.value + "@todolist.com"; // 이메일형식으로 변환
+        firebase.auth().signInWithEmailAndPassword(email, pwd.value)
+            .then(function(){
+          // 로그인 성공 -> 메인화면으로
+          var veiwType = localStorage.viewType;
+          if (veiwType == null) {
+            location.href = "index.html";
+          } else {
+            location.href = veiwType + ".html"; // viewType = "index" or "grid"
+          }
+
+            }).catch(function(error) {
+          // 오류나면 마스크 종료
+          removeMask();
+
+          // Handle Errors here.
+          var errorCode = error.code;
+          var errorMessage = error.message;
+
+          if (errorCode === 'auth/wrong-password') {
+            alert('비밀번호가 틀렸습니다.');
+            pwd.focus();
+
+          } else if (errorCode === 'auth/user-not-found') {
+            alert('이메일을 찾을 수 없습니다.');
+            email.focus();
+
+          } else if (errorCode === 'auth/invalid-email') {
+            alert('잘못된 이메일 형식입니다.');
+            email.focus();
+
+          } else {
+            alert(errorMessage);
+          }
+        });
+      }
+    </script>
+  </body>
+</html>

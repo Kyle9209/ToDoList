@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <!-- Meta -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/main.css" >
+
+    <!-- Title -->
+    <title>Join</title>
+  </head>
+  <body>
+    <div class="container">
+      <div class="row">
+        <div class="colSet col-sm-8 col-sm-offset-2">
+          <h1 id="projectTitle">회원가입</h1>
+          <!-- formDiv -->
+          <div id="formDiv">
+            <!-- userId -->
+            <div class="form-group col-md-6">
+              <label for="userId">아이디</label>
+              <input type="text" class="form-control" placeholder="아이디를 입력하세요" id="userId" maxlength="12">
+            </div>
+            <!-- userName -->
+            <div class="form-group col-md-6">
+              <label for="userName">이름</label>
+              <input type="text" class="form-control" placeholder="이름을 입력하세요" id="userName" maxlength="4">
+            </div>
+            <!-- userPwd -->
+            <div class="form-group col-md-6">
+              <label for="userPwd">비밀번호</label>
+              <input type="password" class="form-control"  placeholder="비밀번호를 입력하세요" id="userPwd" maxlength="12">
+            </div>
+            <!-- userPwdChk -->
+            <div class="form-group col-md-6">
+              <label for="userPwdChk">비밀번호 확인</label>
+              <input type="password" class="form-control" placeholder="비밀번호를 다시 입력하세요" id="userPwdChk" maxlength="12">
+            </div>
+            <!-- userPhone -->
+            <div class="form-group col-md-6">
+              <label for="userPhone">전화번호</label>
+              <input type="tel" class="form-control" placeholder="'-'을 제외한 휴대폰번호를 입력하세요" id="userPhone" onkeypress="onlyNumber(event);" maxlength="11">
+            </div>
+            <!-- userEmail -->
+            <div class="form-group col-md-6">
+              <label for="userEmail">이메일주소</label>
+              <input type="email" class="form-control" placeholder="이메일주소를 입력하세요" id="userEmail" maxlength="50">
+            </div>
+            <!-- agree1 -->
+            <div class="form-group col-md-12">
+              <label for="notiAgree">이용약관</label>
+              <div class="notiAgree">
+                이용약관
+              </div>
+              <input type="checkbox" id="agree1"><label for="agree1" class="chkAgree">위의 이용약관에 동의합니다.</label>
+            </div>
+            <!-- agree2 -->
+            <div class="form-group col-md-12">
+              <label for="notiAgree">개인정보 수집 및 이용에 대한 안내</label>
+              <div class="notiAgree">
+                개인정보 수집 및 이용에 대한 안내
+              </div>
+              <input type="checkbox" id="agree2"><label for="agree2" class="chkAgree">위의 개인정보 수집 및 이용에 대한 안내에 동의합니다.</label>
+            </div>
+          </div>
+          <!-- joinBtn -->
+          <button type="button" class="btn btn-primary btn-lg btn-block" id="joinBtn" onclick="joinProc();">회원가입</button>
+      </div>
+    </div>
+
+    <!-- jQuery -->
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <!-- Bootstrap -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
+    <!-- FireBase -->
+    <script src="https://www.gstatic.com/firebasejs/6.2.0/firebase.js"></script>
+    <script type="text/javascript" src="js/firebase_con.js"></script>
+    <!-- Common Functions -->
+    <script type="text/javascript" src="js/comFunc.js"></script>
+
+    <script>
+      // 휴대폰번호 입력 시 숫자만 가능하도록 셋팅
+      $("#userPhone").keyup(function(e){
+        var inputVal = $(this).val();
+        $(this).val(inputVal.replace(/[^0-9]/gi,''));
+      });
+
+      var userId = document.getElementById('userId');
+      var userName = document.getElementById('userName');
+      var userPwd = document.getElementById('userPwd');
+      var userPwdChk = document.getElementById('userPwdChk');
+      var userPhone = document.getElementById('userPhone');
+      var userEmail = document.getElementById('userEmail');
+      var agree1 = document.getElementById('agree1');
+      var agree2 = document.getElementById('agree2');
+
+      function joinProc() {
+        if (vaildCheck()) {
+          // 입력체크 완료하면 마스크처리
+          showMask();
+
+          var email = userId.value + "@todolist.com"; // 아이디를 이메일형식으로 맞춰줌
+
+          firebase.auth().createUserWithEmailAndPassword(email, userPwd.value)
+              .then(function(result){
+            // 생성된 uid로 데이터 셋팅
+            var query = firebase.database().ref("users").child(result.user.uid);
+            query.set({
+              // JSON 형태로 데이터 전달
+              "eid": userId.value,
+              "name": userName.value,
+              "phone": userPhone.value,
+              "email": userEmail.value,
+              "uid": result.user.uid
+            })
+            .then(function(){
+              // 저장에 성공하면 로그인 화면으로 이동
+              alert("회원가입이 정상적으로 완료되었습니다. 로그인화면으로 이동합니다.");
+              location.href= "login.html";
+            });
+              }).catch(function(error) {
+            var errorCode = error.code;
+            var errorMessage = error.message;
+
+            alert(errorMessage);
+          });
+        }
+      }
+
+      // 각 인풋값들 데이터 유효성 검증
+      function vaildCheck() {
+        // userId 입력 체크
+        if (matchCheck(userId, "ID는 4~12자의 영문 대소문자와 숫자로만 입력해주세요!")) {
+          return false;
+        }
+
+        // userName 입력 체크
+        if (userName.value == "") {
+          window.alert("이름을 입력해주세요!");
+          userName.focus();
+          return false;
+        }
+
+        // userPwd 입력 체크
+        if (matchCheck(userPwd, "비밀번호는 4~12자의 영문 대소문자와 숫자로만 입력해주세요!")) {
+          return false;
+        }
+
+        // userPwdChk 입력 체크
+        if (matchCheck(userPwdChk, "비밀번호 확인은 4~12자의 영문 대소문자와 숫자로만 입력해주세요!")) {
+          return false;
+        }
+
+        // 비밀번호 검증 체크
+        if (userPwd.value != userPwdChk.value) {
+          window.alert("비밀번호가 일치하지 않습니다. 비밀번호 확인을 다시 입력해주세요!");
+          userPwdChk.focus();
+          return false;
+        }
+
+        // userPhone 입력 체크
+        if (userPhone.value == "") {
+          window.alert("휴대폰 번호를 입력해주세요!");
+          userPhone.focus();
+          return false;
+        }
+
+        // userEmail 입력 체크
+        if (userEmail.value.match(/^(\w+)@(\w+)[.](\w+)$/ig) == null) {
+          window.alert("이메일형식에 맞게 입력해주세요!");
+          userEmail.focus();
+          return false;
+        }
+
+        // 이용약관 체크 확인
+        if (!agree1.checked) {
+          window.alert("이용약관에 동의해주세요!");
+          return false;
+        }
+
+        // 개인정보 체크 확인
+        if (!agree2.checked) {
+          window.alert("개인정보 수집 및 이용에 동의해주세요!");
+          return false;
+        }
+
+        return true;
+      }
+
+      // id, pwd 정규식에 맞는지 확인
+      function matchCheck(what, msg) {
+        if (what.value.match(/^[a-zA-Z0-9]{4,12}$/) == null) { // 4~12자리 숫자, 영어 대소문자
+          window.alert(msg);
+          what.focus();
+          return true;
+        } else {
+          return false;
+        }
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <!-- Meta -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.5.0/css/bootstrap-datepicker3.min.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/main.css" >
+
+    <!-- Title -->
+    <title>ToDoList</title>
+  </head>
+  <body>
+    <div class="container">
+      <div class="row">
+        <div class="colSet col-sm-8 col-sm-offset-2">
+          <!-- header -->
+          <div id="header">
+            <span id="eid"></span>
+            <button type="button" class="btn btn-link btn-sm" onclick="chngeViewType();">그리드모드</button>
+            <button type="button" class="btn btn-link btn-sm" onclick="logoutProc();">로그아웃</button>
+          </div>
+          <!-- datePicker -->
+          <div class="input-group date" id="datepicker">
+            <input type="text" class="form-control" id="selectDate" maxlength="8"><span class="input-group-addon"><i class="glyphicon glyphicon-calendar"></i></span>
+          </div>
+          <!-- mainSection -->
+          <div class="mainSection">
+            <!-- accordion -->
+            <div class="panel-group" id="accordion"></div>
+          </div>
+        </div>
+        <!-- addMemo -->
+        <div id="floatingBtn">
+          <a href='add.html' class='btn-floating'><div><i class="glyphicon glyphicon-pencil"></i></div></a>
+        </div>
+      </div>
+    </div>
+
+    <!-- jQuery -->
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <!-- Bootstrap -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.5.0/js/bootstrap-datepicker.min.js"></script>
+    <!-- FireBase -->
+    <script src="https://www.gstatic.com/firebasejs/6.2.0/firebase.js"></script>
+    <script type="text/javascript" src="js/firebase_con.js"></script>
+    <!-- Common Functions -->
+    <script type="text/javascript" src="js/comFunc.js"></script>
+    <!-- setListData() -->
+    <script type="text/javascript" src="js/setListData.js"></script>
+
+    <script>
+      function chngeViewType() {
+        localStorage.viewType = 'grid';
+        location.href = "grid.html?date=" + document.getElementById('selectDate').value;
+      }
+
+      $(function(){
+        // 로딩 시작
+        showLoading();
+
+        firebase.auth().onAuthStateChanged(function(user) {
+          // 데이터 받으면 로딩 종료
+          removeLoading();
+
+          if (user) {
+            // User is signed in.
+            var query = firebase.database().ref("users").child(user.uid);
+            query.once('value')
+              .then(function(dataSnapshot) {
+                document.getElementById('eid').innerHTML = dataSnapshot.child("name").val() + "님의 <span id='subTitle'>ToDoList</span>";
+              });
+
+            // 리스트에 데이터 셋팅
+            setListData(user.uid);
+
+            // 데이트피커 기능 구현 및 이벤트리스너 셋팅
+            $('#datepicker').datepicker({
+              todayHighlight: true,
+              autoclose: true,
+              format: "yyyy-mm-dd"
+            })
+            .on("changeDate", function(e){
+              // 날짜 변경 시 변경된 날짜를 파라미터로 현재화면 재호출
+              location.href= "index.html?date=" + document.getElementById('selectDate').value;
+            });
+          } else {
+            // User is signed out -> 로그인화면으로
+            location.href = "login.html";
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
